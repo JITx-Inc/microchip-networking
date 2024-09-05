@@ -1,0 +1,5 @@
+name = "microchip-networking"
+version = "0.1.0"
+[dependencies]
+JITX3 = { path = "{SLM_ROOT}/JITX3" }
+jsl = { git = "JITx-Inc/jsl", version = "0.5.1" }

@@ -1,0 +1,424 @@
+#use-added-syntax(jitx)
+defpackage microchip-networking/components/KSZ9563:
+  import core
+  import collections
+  import jitx
+  import jitx/commands
+  import jitx/parts/query-api
+
+  import jsl/design/settings
+  import jsl/symbols
+  import jsl/landpatterns
+  import jsl/bundles
+  import jsl/symbols/box-symbol/utils
+  import jsl/protocols/ethernet
+
+defn to-tuple (pad-ids:Int ...) -> Tuple<Int> : 
+  pad-ids
+
+public pcb-component KSZ9563R :
+  name = "KSZ9563R"
+  description = "3-Port Gigabit Ethernet Switch"
+  mpn = "KSZ9563RNXI"
+  manufacturer = "Microchip, Inc."
+  datasheet = "https://ww1.microchip.com/downloads/aemDocuments/documents/UNG/ProductDocuments/DataSheets/KSZ9563R-Data-Sheet-DS00002419.pdf"
+  reference-prefix = "U"
+
+  pin-properties :
+    [pin:Ref         | pads:Int ... | side:Dir | name:String]
+    ; MDI Interfaces
+    [TXRX1P_A        | 62           | Right | - ]
+    [TXRX1M_A        | 63           | Right | - ]
+    [TXRX1P_B        | 1            | Right | - ]
+    [TXRX1M_B        | 2            | Right | - ]
+    [TXRX1P_C        | 3            | Right | - ]
+    [TXRX1M_C        | 4            | Right | - ]
+    [TXRX1P_D        | 6            | Right | - ]
+    [TXRX1M_D        | 7            | Right | - ]
+
+    [TXRX2P_A        | 9            | Right | - ]
+    [TXRX2M_A        | 10           | Right | - ]
+    [TXRX2P_B        | 12           | Right | - ]
+    [TXRX2M_B        | 13           | Right | - ]
+    [TXRX2P_C        | 14           | Right | - ]
+    [TXRX2M_C        | 15           | Right | - ]
+    [TXRX2P_D        | 17           | Right | - ]
+    [TXRX2M_D        | 18           | Right | - ]
+
+    ; MII Interfaces
+    [RXD[0]          | 24           | Left  | "RXD0"     ]
+    [RXD[1]          | 23           | Left  | "RXD1"     ]
+    [RXD[2]          | 22           | Left  | "RXD2"     ]
+    [RXD[3]          | 21           | Left  | "RXD3"     ]
+    [RXCLK_REFCLKO   | 25           | Left  | "RX_CLK/REFCLKO"   ]
+    [RXDV_CRSDV_RXCTL | 27          | Left  | "RX_DV/CRS_DV/RX_CTL"   ]
+    [RX_ER           | 28           | Left  | - ]
+
+    [TXD[0]          | 32           | Left  | "TXD0"]
+    [TXD[1]          | 31           | Left  | "TXD1"]
+    [TXD[2]          | 30           | Left  | "TXD2"]
+    [TXD[3]          | 29           | Left  | "TXD3"]
+    [TXCLK_REFCLKI   | 33           | Left  | "TX_CLK/REFCLKI"]
+    [TXEN_TXCTL      | 35           | Left  | "TX_EN/TX_CTL"]
+    [TX_ER           | 36           | Left  | - ]
+
+    ; Config
+
+    [GPIO[1]         | 39           | Left  | "GPIO_1"]
+    [GPIO[2]         | 40           | Left  | "GPIO_2"]
+
+    [LED0[0]         | 52           | Left  | "LED1_0"]
+    [LED0[1]         | 53           | Left  | "LED1_1"]
+
+    [LED1[0]         | 42           | Left  | "LED2_0"]
+    [LED1[1]         | 43           | Left  | "LED2_1"]
+
+
+    [PME_N           | 44           | Right  | - ]
+    [INTRP_N         | 45           | Right  | - ]
+    [RESET_N         | 46           | Right  | - ]
+
+    [SCL_MDC         | 50           | Right  | "SCL/MDC" ]
+    [SDI_SDA_MDIO    | 48           | Right  | "SDI/SDA/MDIO" ]
+    [SDO             | 47           | Right  | - ]
+    [SCS_N           | 49           | Right  | - ]
+
+    [XO              | 57           | Left  | - ]
+    [XI              | 58           | Left  | - ]
+    [ISET            | 60           | Left  | - ]
+
+  ; Power 
+    for (pad-id in to-tuple(8, 19, 61), i in 0 to false) do:
+      [AVDDH[i]        | pad-id            | Right | - ]
+
+    for (pad-id in to-tuple(5, 11, 16, 56, 64), i in 0 to false) do:
+      [AVDDL[i]        | pad-id           | Left | - ]
+
+    for (pad-id in to-tuple(20, 34, 37, 41, 51, 55), i in 0 to false) do:
+      [DVDDL[i]        | pad-id           | Left | - ]
+
+    for (pad-id in to-tuple(26, 38, 54), i in 0 to false) do:
+      [VDDIO[i]        | pad-id           | Right | - ]
+
+    [GND             | 59           | Left  | - ]
+    [PAD             | 65           | Left  | - ]
+
+
+  val sw-r = #R(sw)
+  val pwr-r = #R(power)
+  val cfg-r = #R(config)
+
+  val box = BoxSymbol(self)
+
+  set-grid(box, [2, 2], sw-r)
+
+  set-bank(sw-r, find-pins-by-regex(box, "^TXRX.*$"))
+  set-row(0, find-pins-by-regex(box, "^TXRX1.*$"))
+  set-row(1, find-pins-by-regex(box, "^TXRX2.*$"))
+
+  set-bank(sw-r, find-pins-by-regex(box, "^(TX|RX).*$"))
+  set-row(0, find-pins-by-regex(box, "^TX[^R].*$"))
+  set-row(1, find-pins-by-regex(box, "^RX.*$"))
+
+  set-grid(box, [2, 2], pwr-r)
+  set-bank(pwr-r, self.AVDDH, self.AVDDL, self.DVDDL, self.VDDIO, self.GND, self.PAD)
+  set-alignment(N, self.AVDDH, self.AVDDL, self.DVDDL, self.VDDIO)
+  set-row(0, self.AVDDH, self.DVDDL)
+  set-row(1, self.VDDIO, self.AVDDL, self.GND, self.PAD)
+  set-alignment(S, self.GND, self.PAD)
+
+  set-grid(box, [2, 2], cfg-r)
+  set-bank(cfg-r, 
+    self.GPIO, self.LED0, self.LED1, self.XO, self.XI, self.ISET, 
+    self.SCL_MDC, self.SDI_SDA_MDIO, self.SDO, self.SCS_N,
+    self.INTRP_N, self.RESET_N, self.PME_N
+    )
+
+  set-group("GPIO", self.GPIO)
+  set-group("LEDS", self.LED0, self.LED1)
+  set-row(0, self.GPIO, self.LED0, self.LED1)
+
+  set-group("CLK", self.XO, self.XI)
+  set-row(1, self.XO, self.XI, self.ISET)
+  set-head-margin(1.0, self.ISET)
+
+  set-group("CTL", self.INTRP_N, self.RESET_N, self.PME_N)
+  set-row(0, self.INTRP_N, self.RESET_N, self.PME_N)
+
+  set-group("CONFIG", self.SCL_MDC, self.SDI_SDA_MDIO, self.SDO, self.SCS_N)
+  set-row(1, self.SCL_MDC, self.SDI_SDA_MDIO, self.SDO, self.SCS_N)
+
+  assign-symbols(
+    sw-r => box,
+    pwr-r => box
+    cfg-r => box
+  )
+
+  val pkg = QFN(
+    num-leads = 64,
+    lead-profile = QFN-Lead-Profile(
+      span = 8.0 +/- 0.05,
+      pitch = 0.4,
+      lead-length = 0.40 +/- 0.05,
+      lead-width = 0.20 +/- 0.05
+    ),
+    thermal-lead? = Rectangle(6.5, 6.5),
+    package-body = PackageBody(
+      width = 8.0 +/- 0.05,
+      length = 8.0 +/- 0.05,
+      height = 0.85 +/- 0.05
+    ),
+    density-level = DensityLevelB
+  )
+
+  val lp = create-landpattern(pkg)
+  assign-landpattern(lp)
+
+defn get-rail-voltage (p:JITXObject, -- def-V:Double, margin:Double) -> Double :
+  ; TODO determine the communication interface here 
+  ;  Ideally - we are placing a property on the voltage rail pin 
+  ;  and using that to communicate somehow.
+  def-V * margin
+
+doc: \<DOC>
+Gigabit Ethernet Switch
+
+This module creates the KSZ9563 network switch IC and the
+necessary supporting components for that network switch.
+
+The user is expected to use the MII and MDI supports statements
+to implement the connections to this device. Some of the 
+lower level features may need to be accessed directly via the
+public `C` instance of KSZ9563
+
+## References
+KSZ9563RNX Hardware Design Checklist
+@see https://ww1.microchip.com/downloads/aemDocuments/documents/OTH/ProductDocuments/SupportingCollateral/KSZ9563RNX-Hardware-Design-Checklist-00002770A.pdf
+
+
+
+<DOC>
+public pcb-module module:
+  name = "KSZ9563 Ethernet Switch"
+
+  port rail-1v2 : power
+  port rail-IO : power
+  port rail-analog : power
+  port rail-analog-1v2 : power
+
+  net GND (rail-1v2.V-, rail-IO.V-, rail-analog.V-, rail-analog-1v2.V-)
+
+  public inst C : KSZ9563R
+
+  net (GND, C.GND, C.PAD)
+
+  ; MII Supports
+
+  val mii-b = mii(MII-TXER)
+  supports mii-b:
+    mii-b.txd[0] => C.TXD[0]
+    mii-b.txd[1] => C.TXD[1]
+    mii-b.txd[2] => C.TXD[2]
+    mii-b.txd[3] => C.TXD[3]
+    mii-b.tx-clk => C.TXCLK_REFCLKI
+    mii-b.tx-en => C.TXEN_TXCTL
+    mii-b.tx-er => C.TX_ER
+
+    mii-b.rxd[0] => C.RXD[0]
+    mii-b.rxd[1] => C.RXD[1]
+    mii-b.rxd[2] => C.RXD[2]
+    mii-b.rxd[3] => C.RXD[3]
+    mii-b.rx-clk => C.RXCLK_REFCLKO
+    mii-b.rx-dv => C.RXDV_CRSDV_RXCTL
+    mii-b.rx-er => C.RX_ER
+
+  val rmii-bus = rmii(add-rx-error = false)
+  supports rmii-bus: ; false => No RX error pin
+    rmii-bus.txd[0] => C.TXD[0]
+    rmii-bus.txd[1] => C.TXD[1]
+    rmii-bus.tx-en => C.TXEN_TXCTL
+    rmii-bus.crs-dv => C.RXDV_CRSDV_RXCTL
+
+    rmii-bus.rxd[0] => C.RXD[0]
+    rmii-bus.rxd[1] => C.RXD[1]
+
+    ; This is the MAC Mode version - where the KSZ9563
+    ;  is acting like a PHY and generates a REF-CLK for
+    ;  the MCU or whatever MAC device.
+    ; The PHY mode version would use `C.TXCLK_REFCLKI`
+    ;  where an attached PHY would drive a REF-CLK into
+    ;  the KSZ9563
+    rmii-bus.ref-clk => C.RXCLK_REFCLKO
+
+  supports rgmii:
+    rgmii.TX.ctl => C.RXDV_CRSDV_RXCTL
+    rgmii.TX.clk => C.RXCLK_REFCLKO
+    rgmii.TX.data[0] => C.RXD[0]
+    rgmii.TX.data[1] => C.RXD[1]
+    rgmii.TX.data[2] => C.RXD[2]
+    rgmii.TX.data[3] => C.RXD[3]
+
+    rgmii.RX.ctl => C.TXEN_TXCTL
+    rgmii.RX.clk => C.TXCLK_REFCLKI
+    rgmii.RX.data[0] => C.TXD[0]
+    rgmii.RX.data[1] => C.TXD[1]
+    rgmii.RX.data[2] => C.TXD[2]
+    rgmii.RX.data[3] => C.TXD[3]
+
+  ; Configuration & Management Interfaces Supports
+  supports miim:
+    miim.mdio => C.SDI_SDA_MDIO
+    miim.mdc => C.SCL_MDC
+
+  val sspi = spi-with-cs()
+  supports sspi:
+    sspi.sck => C.SCL_MDC
+    sspi.copi => C.SDI_SDA_MDIO
+    sspi.cipo => C.SDO
+    sspi.cs => C.SCS_N
+
+  supports i2c:
+    i2c.sda => C.SDI_SDA_MDIO
+    i2c.scl => C.SCL_MDC
+
+  property(self.i2c-addr) = 0x5F
+
+  ; MDI Supports
+
+  make-1000Base-T-supports(
+    [C.TXRX1P_A, C.TXRX1M_A]
+    [C.TXRX1P_B, C.TXRX1M_B]
+    [C.TXRX1P_C, C.TXRX1M_C]
+    [C.TXRX1P_D, C.TXRX1M_D]
+  )
+
+  make-1000Base-T-supports(
+    [C.TXRX2P_A, C.TXRX2M_A]
+    [C.TXRX2P_B, C.TXRX2M_B]
+    [C.TXRX2P_C, C.TXRX2M_C]
+    [C.TXRX2P_D, C.TXRX2M_D]
+  )
+
+  ; GPIO Supports
+  ;  These GPIO are primarily used for the IEEE1588 timing
+  ;  either for capture or notification.
+
+  for i in 1 through length(C.GPIO) do:
+    supports gpio:
+      gpio.gpio => C.GPIO[i]
+
+  ;;;;;;;;;;;;;;;;;;;;;;;;
+  ; Support Components
+  ;;;;;;;;;;;;;;;;;;;;;;;;
+
+  ; See: KSZ9563RNX Hardware Design Checklist - Section 5.0
+  insert-resistor(C.ISET, GND, resistance = 6.04e3, precision = (1 %), type = "chip")
+
+
+  ; Voltage Margin Relative to the intended voltage.
+  ;  This helps set the minimum voltage range to search.
+  val cap-margin = 2.0
+  ; Set a maximum voltage search range for components
+  val max-voltage = 16.0
+
+  ; Bypass Capacitors
+  ; See: KSZ9563RNX Hardware Design Checklist - Section 4.1
+
+  val bypass-query = CapacitorQuery(
+    type = "ceramic",
+    temperature-coefficient_code = "X7R",
+    sort! = SortKey(rated-voltage = Increasing)
+  )
+
+  ; @TODO - I want to consider making some functions that support doing this
+  ;  better.
+
+  val IO-voltage = get-rail-voltage(rail-IO, def-V = 3.3, margin = cap-margin)
+  for p in pins(C.VDDIO) do:
+    net (rail-IO.V+, p)
+    val c = insert-capacitor(
+      p, C.PAD,
+      bypass-query,
+      short-trace? = true
+      capacitance = 0.1e-9,
+      rated-voltage = Interval(IO-voltage, max-voltage)
+    )
+    schematic-group(c) = bypass-cap-IO
+
+  ; Bulk Capacitance
+  val cb-io = insert-capacitor(
+    C.VDDIO[0], C.PAD,
+    bypass-query,
+    short-trace? = true
+    capacitance = 22.0e-6,
+    rated-voltage = Interval(IO-voltage, max-voltage)
+  )
+  schematic-group(cb-io) = bypass-cap-IO
+
+
+  val core-voltage = get-rail-voltage(rail-1v2, def-V = 1.2, margin = cap-margin)
+  for p in pins(C.DVDDL) do:
+    net (rail-1v2.V+, p)
+    val c = insert-capacitor(
+      p, C.PAD,
+      bypass-query,
+      short-trace? = true
+      capacitance = 0.1e-9,
+      rated-voltage = Interval(core-voltage, max-voltage)
+    )
+    schematic-group(c) = bypass-cap-DVDDL
+
+  ; Bulk Capacitance
+  val cb-dvdd = insert-capacitor(
+    C.DVDDL[0], C.PAD
+    bypass-query,
+    short-trace? = true
+    capacitance = 22.0e-6, 
+    rated-voltage = Interval(core-voltage, max-voltage)
+  )
+  schematic-group(cb-dvdd) = bypass-cap-DVDDL
+
+  val core-analog-V = get-rail-voltage(rail-analog-1v2, def-V = 1.2, margin = cap-margin)
+  for p in pins(C.AVDDL) do:
+    net (rail-analog-1v2.V+, p)
+    val c = insert-capacitor(
+      p, C.PAD,
+      bypass-query,
+      short-trace? = true
+      capacitance = 0.1e-9, 
+      rated-voltage = Interval(core-voltage, max-voltage)
+    )
+    schematic-group(c) = bypass-cap-AVDDL
+
+  ; Bulk Capacitance
+  val cb-avdd = insert-capacitor(
+    C.AVDDL[0], C.PAD
+    bypass-query,
+    short-trace? = true
+    capacitance = 22.0e-6, 
+    rated-voltage = Interval(core-voltage, 10.0),
+  )
+  schematic-group(cb-avdd) = bypass-cap-AVDDL
+
+  val analog-voltage = get-rail-voltage(rail-analog, def-V = 3.3, margin = cap-margin)
+  for p in pins(C.AVDDH) do:
+    net (rail-analog.V+, p)
+    val c = insert-capacitor(
+      p, C.PAD,
+      bypass-query,
+      short-trace? = true
+      capacitance = 0.1e-9, 
+      rated-voltage = Interval(analog-voltage, max-voltage)
+    )
+    schematic-group(c) = bypass-cap-AVDDH
+
+  ; Bulk Capacitance
+  val cb-ah = insert-capacitor(
+    C.AVDDH[0], C.PAD
+    bypass-query,
+    short-trace? = true
+    capacitance = 22.0e-6, 
+    rated-voltage = Interval(analog-voltage, max-voltage)
+
+  )
+  schematic-group(cb-ah) = bypass-cap-AVDDH

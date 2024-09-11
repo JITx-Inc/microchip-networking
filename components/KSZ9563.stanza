@@ -67,11 +67,11 @@ public pcb-component KSZ9563R :
     [GPIO[1]         | 39           | Left  | "GPIO_1"]
     [GPIO[2]         | 40           | Left  | "GPIO_2"]
 
-    [LED0[0]         | 52           | Left  | "LED1_0"]
-    [LED0[1]         | 53           | Left  | "LED1_1"]
+    [LED1[0]         | 52           | Left  | "LED1_0"]
+    [LED1[1]         | 53           | Left  | "LED1_1"]
 
-    [LED1[0]         | 42           | Left  | "LED2_0"]
-    [LED1[1]         | 43           | Left  | "LED2_1"]
+    [LED2[0]         | 42           | Left  | "LED2_0"]
+    [LED2[1]         | 43           | Left  | "LED2_1"]
 
 
     [PME_N           | 44           | Right  | - ]
@@ -128,15 +128,15 @@ public pcb-component KSZ9563R :
   set-alignment(S, self.GND, self.PAD)
 
   set-grid(box, [2, 2], cfg-r)
-  set-bank(cfg-r, 
-    self.GPIO, self.LED0, self.LED1, self.XO, self.XI, self.ISET, 
+  set-bank(cfg-r,
+    self.GPIO, self.LED1, self.LED2, self.XO, self.XI, self.ISET,
     self.SCL_MDC, self.SDI_SDA_MDIO, self.SDO, self.SCS_N,
     self.INTRP_N, self.RESET_N, self.PME_N
     )
 
   set-group("GPIO", self.GPIO)
-  set-group("LEDS", self.LED0, self.LED1)
-  set-row(0, self.GPIO, self.LED0, self.LED1)
+  set-group("LEDS", self.LED1, self.LED2)
+  set-row(0, self.GPIO, self.LED1, self.LED2)
 
   set-group("CLK", self.XO, self.XI)
   set-row(1, self.XO, self.XI, self.ISET)

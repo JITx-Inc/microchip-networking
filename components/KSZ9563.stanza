@@ -12,8 +12,9 @@ defpackage microchip-networking/components/KSZ9563:
   import jsl/bundles
   import jsl/symbols/box-symbol/utils
   import jsl/protocols/ethernet
+  import jsl/circuits/Bypass
 
-defn to-tuple (pad-ids:Int ...) -> Tuple<Int> : 
+defn to-tuple (pad-ids:Int ...) -> Tuple<Int> :
   pad-ids
 
 public pcb-component KSZ9563R :
@@ -87,7 +88,7 @@ public pcb-component KSZ9563R :
     [XI              | 58           | Left  | - ]
     [ISET            | 60           | Left  | - ]
 
-  ; Power 
+  ; Power
     for (pad-id in to-tuple(8, 19, 61), i in 0 to false) do:
       [AVDDH[i]        | pad-id            | Right | - ]
 
@@ -175,8 +176,8 @@ public pcb-component KSZ9563R :
   assign-landpattern(lp)
 
 defn get-rail-voltage (p:JITXObject, -- def-V:Double, margin:Double) -> Double :
-  ; TODO determine the communication interface here 
-  ;  Ideally - we are placing a property on the voltage rail pin 
+  ; TODO determine the communication interface here
+  ;  Ideally - we are placing a property on the voltage rail pin
   ;  and using that to communicate somehow.
   def-V * margin
 
@@ -187,7 +188,7 @@ This module creates the KSZ9563 network switch IC and the
 necessary supporting components for that network switch.
 
 The user is expected to use the MII and MDI supports statements
-to implement the connections to this device. Some of the 
+to implement the connections to this device. Some of the
 lower level features may need to be accessed directly via the
 public `C` instance of KSZ9563
 
@@ -314,7 +315,6 @@ public pcb-module module:
   ; See: KSZ9563RNX Hardware Design Checklist - Section 5.0
   insert-resistor(C.ISET, GND, resistance = 6.04e3, precision = (1 %), type = "chip")
 
-
   ; Voltage Margin Relative to the intended voltage.
   ;  This helps set the minimum voltage range to search.
   val cap-margin = 2.0
@@ -330,95 +330,58 @@ public pcb-module module:
     sort! = SortKey(rated-voltage = Increasing)
   )
 
-  ; @TODO - I want to consider making some functions that support doing this
-  ;  better.
-
   val IO-voltage = get-rail-voltage(rail-IO, def-V = 3.3, margin = cap-margin)
+  val core-voltage = get-rail-voltage(rail-1v2, def-V = 1.2, margin = cap-margin)
+  val core-analog-V = get-rail-voltage(rail-analog-1v2, def-V = 1.2, margin = cap-margin)
+  val analog-voltage = get-rail-voltage(rail-analog, def-V = 3.3, margin = cap-margin)
+
+  ; Find the largest rail voltage and we will use that to plan our
+  val max-rail-V = maximum([IO-voltage, core-voltage, core-analog-V, analog-voltage])
+
+  ; Smaller Bypass Cap - we place one per pin.
+  val fine-C = create-capacitor(
+    bypass-query,
+    capacitance = 0.1e-6,
+    rated-voltage = Interval(max-rail-V, max-voltage)
+  )
+
+  ; Bulk Capacitance - We place one of these per rail.
+  val bulk-C = create-capacitor(
+    bypass-query,
+    capacitance = 22.0e-6
+    rated-voltage = Interval(max-rail-V, max-voltage)
+  )
+
   for p in pins(C.VDDIO) do:
-    net (rail-IO.V+, p)
-    val c = insert-capacitor(
-      p, C.PAD,
-      bypass-query,
-      short-trace? = true
-      capacitance = 0.1e-9,
-      rated-voltage = Interval(IO-voltage, max-voltage)
-    )
+    net (p, rail-IO.V+)
+    val c = insert-bypass(p, GND, elem-type = fine-C)
     schematic-group(c) = bypass-cap-IO
 
   ; Bulk Capacitance
-  val cb-io = insert-capacitor(
-    C.VDDIO[0], C.PAD,
-    bypass-query,
-    short-trace? = true
-    capacitance = 22.0e-6,
-    rated-voltage = Interval(IO-voltage, max-voltage)
-  )
+  val cb-io = insert-bypass(C.VDDIO[0], GND, elem-type = bulk-C)
   schematic-group(cb-io) = bypass-cap-IO
 
-
-  val core-voltage = get-rail-voltage(rail-1v2, def-V = 1.2, margin = cap-margin)
   for p in pins(C.DVDDL) do:
     net (rail-1v2.V+, p)
-    val c = insert-capacitor(
-      p, C.PAD,
-      bypass-query,
-      short-trace? = true
-      capacitance = 0.1e-9,
-      rated-voltage = Interval(core-voltage, max-voltage)
-    )
+    val c = insert-bypass(p, GND, elem-type = fine-C)
     schematic-group(c) = bypass-cap-DVDDL
 
-  ; Bulk Capacitance
-  val cb-dvdd = insert-capacitor(
-    C.DVDDL[0], C.PAD
-    bypass-query,
-    short-trace? = true
-    capacitance = 22.0e-6, 
-    rated-voltage = Interval(core-voltage, max-voltage)
-  )
-  schematic-group(cb-dvdd) = bypass-cap-DVDDL
+  val cb-dvddl = insert-bypass(C.DVDDL[0], GND, elem-type = bulk-C)
+  schematic-group(cb-dvddl) = bypass-cap-DVDDL
 
-  val core-analog-V = get-rail-voltage(rail-analog-1v2, def-V = 1.2, margin = cap-margin)
   for p in pins(C.AVDDL) do:
     net (rail-analog-1v2.V+, p)
-    val c = insert-capacitor(
-      p, C.PAD,
-      bypass-query,
-      short-trace? = true
-      capacitance = 0.1e-9, 
-      rated-voltage = Interval(core-voltage, max-voltage)
-    )
+    val c = insert-bypass(p, GND, elem-type = fine-C)
     schematic-group(c) = bypass-cap-AVDDL
 
-  ; Bulk Capacitance
-  val cb-avdd = insert-capacitor(
-    C.AVDDL[0], C.PAD
-    bypass-query,
-    short-trace? = true
-    capacitance = 22.0e-6, 
-    rated-voltage = Interval(core-voltage, 10.0),
-  )
+  val cb-avdd = insert-bypass(C.AVDDL[0], GND, elem-type = bulk-C)
   schematic-group(cb-avdd) = bypass-cap-AVDDL
 
-  val analog-voltage = get-rail-voltage(rail-analog, def-V = 3.3, margin = cap-margin)
   for p in pins(C.AVDDH) do:
     net (rail-analog.V+, p)
-    val c = insert-capacitor(
-      p, C.PAD,
-      bypass-query,
-      short-trace? = true
-      capacitance = 0.1e-9, 
-      rated-voltage = Interval(analog-voltage, max-voltage)
-    )
+    val c = insert-bypass(p, GND, elem-type = fine-C)
     schematic-group(c) = bypass-cap-AVDDH
 
-  ; Bulk Capacitance
-  val cb-ah = insert-capacitor(
-    C.AVDDH[0], C.PAD
-    bypass-query,
-    short-trace? = true
-    capacitance = 22.0e-6, 
-    rated-voltage = Interval(analog-voltage, max-voltage)
-
-  )
+  val cb-ah = insert-bypass(C.AVDDH[0], GND, elem-type = bulk-C)
   schematic-group(cb-ah) = bypass-cap-AVDDH
+

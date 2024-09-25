@@ -163,7 +163,11 @@ public pcb-component KSZ9563R :
       lead-length = 0.40 +/- 0.05,
       lead-width = 0.20 +/- 0.05
     ),
-    thermal-lead? = Rectangle(6.5, 6.5),
+    thermal-lead? = ThermalPad(
+      Rectangle(6.5, 6.5),
+      padding = 0.25,
+      grid-size = 3
+    ),
     package-body = PackageBody(
       width = 8.0 +/- 0.05,
       length = 8.0 +/- 0.05,

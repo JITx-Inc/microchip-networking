@@ -347,6 +347,7 @@ public pcb-module module:
     bypass-query,
     capacitance = 0.1e-6,
     rated-voltage = Interval(max-rail-V, max-voltage)
+    case = ["0402"]
   )
 
   ; Bulk Capacitance - We place one of these per rail.
@@ -354,6 +355,7 @@ public pcb-module module:
     bypass-query,
     capacitance = 22.0e-6
     rated-voltage = Interval(max-rail-V, max-voltage)
+    case = ["0603", "0805", "1206"]
   )
 
   for p in pins(C.VDDIO) do:

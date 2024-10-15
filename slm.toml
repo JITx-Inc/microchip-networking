@@ -2,3 +2,6 @@ name = "microchip-networking"
 version = "0.3.0"
 [dependencies]
 jsl = { git = "JITx-Inc/jsl", version = "0.7.0" }
+passives = { git = "JITx-Inc/passives", version = "0.1.0" }
+power-systems = { git = "JITx-Inc/power-systems", version = "0.4.0" }
+debug = { git = "JITx-Inc/debug", version = "0.2.0" }

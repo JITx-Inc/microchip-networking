@@ -6,13 +6,9 @@ defpackage microchip-networking/components/KSZ9563:
   import jitx/commands
   import jitx/parts/query-api
 
-  import jsl/design/settings
-  import jsl/symbols
-  import jsl/landpatterns
-  import jsl/bundles
-  import jsl/symbols/box-symbol/utils
-  import jsl/protocols/ethernet
-  import jsl/circuits/Bypass
+  import jsl
+  import power-systems
+  import debug/test-points
 
 defn to-tuple (pad-ids:Int ...) -> Tuple<Int> :
   pad-ids
@@ -390,4 +386,217 @@ public pcb-module module:
 
   val cb-ah = insert-bypass(C.AVDDH[0], GND, elem-type = bulk-C)
   schematic-group(cb-ah) = bypass-cap-AVDDH
+
+doc: \<DOC>
+Default Thermal Via for the KSZ9563 Switch Circuit
+
+This uses a 0.3mm hole and 0.45 circular copper land by default.
+<DOC>
+public pcb-via def-thermal-via:
+  name = "KSZ9563 Default Thermal Via"
+  start = Top
+  stop = Bottom
+  diameter = 0.45
+  hole-diameter = 0.3
+  type = MechanicalDrill
+  tented = true
+  filled = true
+  via-in-pad = true
+
+val rmii-bus = rmii(add-rx-error = false)
+
+doc: \<DOC>
+KSZ9563 Network Switch Circuit
+
+This module defines many of the supporting features
+for instantiating the KSZ9563 circuit in a design.
+
+This module makes the underlying component instance `netsw`
+public so that the user can directly access ports as necessary.
+
+The current implementation is supports RMII and MIIM for
+the configuration interface.
+
+@member VDD-1v2 1.2V Power Rail input. This rail will be used
+for both the digital and analog 1.2V rails with a ferrite power filter
+instantiated for the analog.
+@member VDD-3v3 3.3V Power rail input. THis rail will be used
+for the VDD-IO and the Analog 3.3V power rail. A ferrite power filter
+is applied to source to the analog power rail.
+@member mii Media Independent Interface implemented as a RMII
+(Reduced Media Independent Interface)
+@member management Management interface, currently implemented as
+a MIIM interface.
+@member power-evt-n Active low power event signal from the switch
+@member irq-n Active low interrupt request signal from the switch
+
+@param therm-via Thermal via to use for the ground pad of the IC. By
+default {@link def-thermal-via} is used.
+@param make-oscillator Instantiate a crystal oscillator circuit for
+the switch. Use `false` here to drive the clock input of the KSZ9563
+directly with a logic level signal. Default value is `true`.
+
+<DOC>
+public pcb-module circuit ( -- therm-via:Via = def-thermal-via, make-oscillator:True|False = true):
+
+  port VDD-1v2 : power
+  port VDD-3v3 : power
+
+  port mii : rmii-bus
+  port management : miim
+
+  port power-evt-n
+  port irq-n
+  port LEDs : pin[2][2]
+
+  public inst netsw : microchip-networking/components/KSZ9563/module
+
+  net (VDD-3v3, netsw.rail-IO)
+  net (VDD-1v2, netsw.rail-1v2)
+  net GND (VDD-3v3.V-, netsw.C.PAD)
+
+  net (LEDs[0][0], netsw.C.LED1[0])
+  net (LEDs[0][1], netsw.C.LED1[1])
+  net (LEDs[1][0], netsw.C.LED2[0])
+  net (LEDs[1][1], netsw.C.LED2[1])
+
+  ;; ---- Power ----
+
+  ; Construct a Filter with a ferrite to apply:
+  ; 1.  3.3V rail to analog vdd
+  ; 2.  1.2V rail to analog core vdd
+
+  val ferrite = passives/ferrite/BLM18KG(220)
+  inst filt-3v3 : unbalanced-filter(ferrite)
+  net (VDD-3v3, filt-3v3.vin)
+  net (filt-3v3.vout, netsw.rail-analog)
+
+  inst filt-1v2 : unbalanced-filter(ferrite)
+  net (VDD-1v2, filt-1v2.vin)
+  net (filt-1v2.vout, netsw.rail-analog-1v2)
+
+  net A1v2 (netsw.rail-analog-1v2.V+)
+  net A3v3 (netsw.rail-analog.V+)
+  make-test-points([A1v2, A3v3])
+
+  ; ------- Via Grid -----------
+  val tv-g = GridThermalVias(
+    via-def = therm-via,
+    grid-def = GridPlanner(
+      pitch = 1.2,
+      columns = 6,
+      rows = 6
+    )
+  )
+
+  make-via-grid(tv-g, netsw.C.PAD)
+
+  if make-oscillator:
+    ;; ---- Crystal ----
+    ;  25MHz +/- 50ppm
+
+    val xtal-type = passives/crystal/FA-238(25)
+
+    val resonator-type = create-crystal-resonator(
+      xtal-type = xtal-type,
+      C-load = typ(property(xtal-type.C-load))
+      ; From IBIS file
+      C-stray = typ(0.25e-12),
+      V-rating = 2.0 * 3.3 ; AVDDH
+    )
+
+    inst resonator : resonator-type
+    net (resonator.COMMON, GND)
+    net (resonator.p[1], netsw.C.XI)
+    ; Add a series resistor for dampening if needed.
+    insert-resistor(
+      resonator.p[2], netsw.C.XO,
+      resistance = 0.0,
+      precision = (1 %)
+    )
+
+  ;; ---- Configuration Straps ------
+
+  val pullup-R-t = create-resistor(resistance = 4.7e3, precision = (1 %))
+  inst configs : ConfigStrap(
+    num-elems = 4,
+    comp = pullup-R-t,
+    pack? = One(LongitudinalPacking(margin = 0.2))
+  )
+  net (configs.hi, VDD-3v3.V+)
+  net (configs.lo, GND)
+
+  require straps:config-strap-bus(4) from configs
+
+  ; TODO - remove the pin assignment here
+  ; because I can't actually implement this the
+  ; way that I want to.
+
+  net (straps.config[0], netsw.C.LED1[0])
+  net (straps.config[1], netsw.C.LED1[1])
+  net (straps.config[2], netsw.C.LED2[0])
+  net (straps.config[3], netsw.C.LED2[1])
+
+  ; RXD0-3 have internal pull-downs
+  ; [RXD1, RXD0] => 00 => MIIM interface
+  ; [RXD3, RXD2] => 01 => RMII
+
+  insert-pullup(
+    netsw.C.RXD[2], VDD-3v3,
+    elem-type = pullup-R-t
+  )
+
+  ; PME_N must be pullup high to provide to enable
+  ;  Auto-negotiation.
+  insert-pullup(
+    netsw.C.PME_N, VDD-3v3,
+    elem-type = pullup-R-t
+  )
+  net PME_N (power-evt-n, netsw.C.PME_N)
+
+  insert-pullup(
+    netsw.C.INTRP_N, VDD-3v3,
+    elem-type = pullup-R-t
+  )
+  net IRQ_N (irq-n, netsw.C.INTRP_N)
+
+  make-test-points([IRQ_N, PME_N])
+
+
+  ; These connections are not used in the MIIM
+  ;   management interface.
+  no-connect(netsw.C.SDO)
+  no-connect(netsw.C.SCS_N)
+
+  ;;  ----  RMII Setup ------
+  require sw-bus : rmii-bus from netsw
+
+  ; This inserts series resistors between the
+  ;  RMII transmit pins from the netsw and then
+  ;  assigns short-trace to them so that they get
+  ;  placed near the network switch.
+
+  ; These signals are inputs and do not require the
+  ;   series resistor - The MAC side on the microcontroller
+  ;   will provide dampening resistors near its transmitter.
+  topo-bus([sw-bus.tx-en, sw-bus.txd] => [mii.tx-en, mii.txd])
+
+  val series-R-type = create-resistor(resistance = 51.0, precision = (1 %), case = ["0402"])
+  ; pin-model(series-R-type.p[1], series-R-type.p[2]) = PinModel(typ(1.0e-12), typ(0.0))
+
+  val rx-bus = [sw-bus.rxd, sw-bus.crs-dv, sw-bus.ref-clk]
+  val rx-out = [mii.rxd, mii.crs-dv, mii.ref-clk]
+  topo-bus(ShortTrace(rx-bus => series-R-type) => rx-out)
+
+  ; We need to set signal ends here because the series
+  ;  resistors will present a problem when attempting to
+  ;  apply the routing structure at the top-level.
+  set-signal-end(mii, sw-bus)
+
+  ;;  ---- Management Interface -----
+
+  require miim-bus:miim from netsw
+  net (management, miim-bus)
+
+
 

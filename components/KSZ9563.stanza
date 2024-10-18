@@ -437,7 +437,16 @@ the switch. Use `false` here to drive the clock input of the KSZ9563
 directly with a logic level signal. Default value is `true`.
 
 <DOC>
-public pcb-module circuit ( -- therm-via:Via = def-thermal-via, make-oscillator:True|False = true):
+public pcb-module circuit (
+  --
+  therm-via:Via = def-thermal-via,
+  make-oscillator:True|False = true,
+  enable-in-band-mng:True|False = false,
+  enable-on-reset:True|False = true,
+  enable-gigabit:True|False = true,
+  rmii-clock-mode:True|False = true,
+  enable-ibs:True|False = false
+  ):
 
   port VDD-1v2 : power
   port VDD-3v3 : power
@@ -526,16 +535,25 @@ public pcb-module circuit ( -- therm-via:Via = def-thermal-via, make-oscillator:
   net (configs.hi, VDD-3v3.V+)
   net (configs.lo, GND)
 
-  require straps:config-strap-bus(4) from configs
+  ; TODO - use pin assignment and determine mappings
+  ;   for configuration bom status after routing.
+  net (configs.configs[0], netsw.C.LED1[1])
+  net (configs.configs[1], netsw.C.LED1[0])
+  net (configs.configs[2], netsw.C.LED2[1])
+  net (configs.configs[3], netsw.C.LED2[0])
 
-  ; TODO - remove the pin assignment here
-  ; because I can't actually implement this the
-  ; way that I want to.
+  ; These configurations are shared on
+  ;    LED2_0
+  ; RMII - Clock/Normal Mode
+  ; RGMII - IBS enable/disable
 
-  net (straps.config[0], netsw.C.LED1[0])
-  net (straps.config[1], netsw.C.LED1[1])
-  net (straps.config[2], netsw.C.LED2[0])
-  net (straps.config[3], netsw.C.LED2[1])
+  val cfg =
+    (1 when not enable-in-band-mng else 0) |
+    (2 when enable-on-reset else 0) |
+    (4 when enable-gigabit else 0) |
+    (8 when not rmii-clock-mode or enable-ibs else 0 )
+
+  set-straps-config(configs, cfg)
 
   ; RXD0-3 have internal pull-downs
   ; [RXD1, RXD0] => 00 => MIIM interface

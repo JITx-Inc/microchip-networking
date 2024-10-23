@@ -387,22 +387,6 @@ public pcb-module module:
   val cb-ah = insert-bypass(C.AVDDH[0], GND, elem-type = bulk-C)
   schematic-group(cb-ah) = bypass-cap-AVDDH
 
-doc: \<DOC>
-Default Thermal Via for the KSZ9563 Switch Circuit
-
-This uses a 0.3mm hole and 0.45 circular copper land by default.
-<DOC>
-public pcb-via def-thermal-via:
-  name = "KSZ9563 Default Thermal Via"
-  start = Top
-  stop = Bottom
-  diameter = 0.45
-  hole-diameter = 0.3
-  type = MechanicalDrill
-  tented = true
-  filled = true
-  via-in-pad = true
-
 val rmii-bus = rmii(add-rx-error = false)
 
 doc: \<DOC>
@@ -430,191 +414,212 @@ a MIIM interface.
 @member power-evt-n Active low power event signal from the switch
 @member irq-n Active low interrupt request signal from the switch
 
-@param therm-via Thermal via to use for the ground pad of the IC. By
-default {@link def-thermal-via} is used.
+@param substrate PCB Substrate where the via's are defined. This
+circuit requires at least one via that is `via-in-pad` capable.
 @param make-oscillator Instantiate a crystal oscillator circuit for
 the switch. Use `false` here to drive the clock input of the KSZ9563
 directly with a logic level signal. Default value is `true`.
+@param enable-in-band-msg Enable the In-band management interface.
+This allows the user to make modifications to the switch via the
+ethernet interface. See section 4.10 in the datasheet. By default,
+this is deactivated.
+@param enable-on-reset Enable network switching to start on
+reset of the network switch. By default this is activated.
+@param enable-gigabit Configures Port 3 MAC as Gigabit. If
+deasserted, then the MAC operates at 100Mbps speed. Default is
+activated.
+@param rmii-clock-mode Configures the RMII directional flow
+of the clock. In normal mode, the RMII interface receives
+a clock from the PHY. In clock mode, the RMII interface
+generates a clock to drive the MAC on a MCU. By default,
+the clock mode is active. This flag only affects RMII
+mode.
 
 <DOC>
-public pcb-module circuit (
+public defn circuit (
+  substrate:Substrate
   --
-  therm-via:Via = def-thermal-via,
   make-oscillator:True|False = true,
   enable-in-band-mng:True|False = false,
   enable-on-reset:True|False = true,
   enable-gigabit:True|False = true,
-  rmii-clock-mode:True|False = true,
-  enable-ibs:True|False = false
+  rmii-clock-mode:True|False = true
   ):
+  pcb-module circuit-t:
 
-  port VDD-1v2 : power
-  port VDD-3v3 : power
+    port VDD-1v2 : power
+    port VDD-3v3 : power
 
-  port mii : rmii-bus
-  port management : miim
+    port mii : rmii-bus
+    port management : miim
 
-  port power-evt-n
-  port irq-n
-  port LEDs : pin[2][2]
+    port power-evt-n
+    port irq-n
+    port LEDs : pin[2][2]
 
-  public inst netsw : microchip-networking/components/KSZ9563/module
+    public inst netsw : microchip-networking/components/KSZ9563/module
 
-  net (VDD-3v3, netsw.rail-IO)
-  net (VDD-1v2, netsw.rail-1v2)
-  net GND (VDD-3v3.V-, netsw.C.PAD)
+    net (VDD-3v3, netsw.rail-IO)
+    net (VDD-1v2, netsw.rail-1v2)
+    net GND (VDD-3v3.V-, netsw.C.PAD)
 
-  net (LEDs[0][0], netsw.C.LED1[0])
-  net (LEDs[0][1], netsw.C.LED1[1])
-  net (LEDs[1][0], netsw.C.LED2[0])
-  net (LEDs[1][1], netsw.C.LED2[1])
+    net (LEDs[0][0], netsw.C.LED1[0])
+    net (LEDs[0][1], netsw.C.LED1[1])
+    net (LEDs[1][0], netsw.C.LED2[0])
+    net (LEDs[1][1], netsw.C.LED2[1])
 
-  ;; ---- Power ----
+    ;; ---- Power ----
 
-  ; Construct a Filter with a ferrite to apply:
-  ; 1.  3.3V rail to analog vdd
-  ; 2.  1.2V rail to analog core vdd
+    ; Construct a Filter with a ferrite to apply:
+    ; 1.  3.3V rail to analog vdd
+    ; 2.  1.2V rail to analog core vdd
 
-  val ferrite = passives/ferrite/BLM18KG(220)
-  inst filt-3v3 : unbalanced-filter(ferrite)
-  net (VDD-3v3, filt-3v3.vin)
-  net (filt-3v3.vout, netsw.rail-analog)
+    val ferrite = passives/ferrite/BLM18KG(220)
+    inst filt-3v3 : unbalanced-filter(ferrite)
+    net (VDD-3v3, filt-3v3.vin)
+    net (filt-3v3.vout, netsw.rail-analog)
 
-  inst filt-1v2 : unbalanced-filter(ferrite)
-  net (VDD-1v2, filt-1v2.vin)
-  net (filt-1v2.vout, netsw.rail-analog-1v2)
+    inst filt-1v2 : unbalanced-filter(ferrite)
+    net (VDD-1v2, filt-1v2.vin)
+    net (filt-1v2.vout, netsw.rail-analog-1v2)
 
-  net A1v2 (netsw.rail-analog-1v2.V+)
-  net A3v3 (netsw.rail-analog.V+)
-  make-test-points([A1v2, A3v3])
+    net A1v2 (netsw.rail-analog-1v2.V+)
+    net A3v3 (netsw.rail-analog.V+)
+    make-test-points([A1v2, A3v3])
 
-  ; ------- Via Grid -----------
-  val tv-g = GridThermalVias(
-    via-def = therm-via,
-    grid-def = GridPlanner(
-      pitch = 1.2,
-      columns = 6,
-      rows = 6
-    )
-  )
+    ; ------- Via Grid -----------
+    val therm-via = first!{One, _} $ query-via(
+      substrate,
+      start = Top,
+      via-in-pad = true
+      )
 
-  make-via-grid(tv-g, netsw.C.PAD)
-
-  if make-oscillator:
-    ;; ---- Crystal ----
-    ;  25MHz +/- 50ppm
-
-    val xtal-type = passives/crystal/FA-238(25)
-
-    val resonator-type = create-crystal-resonator(
-      xtal-type = xtal-type,
-      C-load = typ(property(xtal-type.C-load))
-      ; From IBIS file
-      C-stray = typ(0.25e-12),
-      V-rating = 2.0 * 3.3 ; AVDDH
+    val tv-g = GridThermalVias(
+      via-def = therm-via,
+      grid-def = GridPlanner(
+        pitch = 1.2,
+        columns = 6,
+        rows = 6
+      )
     )
 
-    inst resonator : resonator-type
-    net (resonator.COMMON, GND)
-    net (resonator.p[1], netsw.C.XI)
-    ; Add a series resistor for dampening if needed.
-    insert-resistor(
-      resonator.p[2], netsw.C.XO,
-      resistance = 0.0,
-      precision = (1 %)
+    make-via-grid(tv-g, netsw.C.PAD)
+
+    if make-oscillator:
+      ;; ---- Crystal ----
+      ;  25MHz +/- 50ppm
+
+      val xtal-type = passives/crystal/FA-238(25)
+
+      val resonator-type = create-crystal-resonator(
+        xtal-type = xtal-type,
+        C-load = typ(property(xtal-type.C-load))
+        ; From IBIS file
+        C-stray = typ(0.25e-12),
+        V-rating = 2.0 * 3.3 ; AVDDH
+      )
+
+      inst resonator : resonator-type
+      net (resonator.COMMON, GND)
+      net (resonator.p[1], netsw.C.XI)
+      ; Add a series resistor for dampening if needed.
+      insert-resistor(
+        resonator.p[2], netsw.C.XO,
+        resistance = 0.0,
+        precision = (1 %)
+      )
+
+    ;; ---- Configuration Straps ------
+
+    val pullup-R-t = create-resistor(resistance = 4.7e3, precision = (1 %))
+    inst configs : ConfigStrap(
+      num-elems = 4,
+      comp = pullup-R-t,
+      pack? = One(LongitudinalPacking(margin = 0.2))
+    )
+    net (configs.hi, VDD-3v3.V+)
+    net (configs.lo, GND)
+
+    ; TODO - use pin assignment and determine mappings
+    ;   for configuration bom status after routing.
+    net (configs.configs[0], netsw.C.LED1[1])
+    net (configs.configs[1], netsw.C.LED1[0])
+    net (configs.configs[2], netsw.C.LED2[1])
+    net (configs.configs[3], netsw.C.LED2[0])
+
+    ; These configurations are shared on
+    ;    LED2_0
+    ; RMII - Clock/Normal Mode
+    ; RGMII - IBS enable/disable
+
+    val cfg =
+      (1 when not enable-in-band-mng else 0) |
+      (2 when enable-on-reset else 0) |
+      (4 when enable-gigabit else 0) |
+      (8 when not rmii-clock-mode else 0 )
+
+    set-straps-config(configs, cfg)
+
+    ; RXD0-3 have internal pull-downs
+    ; [RXD1, RXD0] => 00 => MIIM interface
+    ; [RXD3, RXD2] => 01 => RMII
+
+    insert-pullup(
+      netsw.C.RXD[2], VDD-3v3,
+      elem-type = pullup-R-t
     )
 
-  ;; ---- Configuration Straps ------
+    ; PME_N must be pullup high to provide to enable
+    ;  Auto-negotiation.
+    insert-pullup(
+      netsw.C.PME_N, VDD-3v3,
+      elem-type = pullup-R-t
+    )
+    net PME_N (power-evt-n, netsw.C.PME_N)
 
-  val pullup-R-t = create-resistor(resistance = 4.7e3, precision = (1 %))
-  inst configs : ConfigStrap(
-    num-elems = 4,
-    comp = pullup-R-t,
-    pack? = One(LongitudinalPacking(margin = 0.2))
-  )
-  net (configs.hi, VDD-3v3.V+)
-  net (configs.lo, GND)
+    insert-pullup(
+      netsw.C.INTRP_N, VDD-3v3,
+      elem-type = pullup-R-t
+    )
+    net IRQ_N (irq-n, netsw.C.INTRP_N)
 
-  ; TODO - use pin assignment and determine mappings
-  ;   for configuration bom status after routing.
-  net (configs.configs[0], netsw.C.LED1[1])
-  net (configs.configs[1], netsw.C.LED1[0])
-  net (configs.configs[2], netsw.C.LED2[1])
-  net (configs.configs[3], netsw.C.LED2[0])
-
-  ; These configurations are shared on
-  ;    LED2_0
-  ; RMII - Clock/Normal Mode
-  ; RGMII - IBS enable/disable
-
-  val cfg =
-    (1 when not enable-in-band-mng else 0) |
-    (2 when enable-on-reset else 0) |
-    (4 when enable-gigabit else 0) |
-    (8 when not rmii-clock-mode or enable-ibs else 0 )
-
-  set-straps-config(configs, cfg)
-
-  ; RXD0-3 have internal pull-downs
-  ; [RXD1, RXD0] => 00 => MIIM interface
-  ; [RXD3, RXD2] => 01 => RMII
-
-  insert-pullup(
-    netsw.C.RXD[2], VDD-3v3,
-    elem-type = pullup-R-t
-  )
-
-  ; PME_N must be pullup high to provide to enable
-  ;  Auto-negotiation.
-  insert-pullup(
-    netsw.C.PME_N, VDD-3v3,
-    elem-type = pullup-R-t
-  )
-  net PME_N (power-evt-n, netsw.C.PME_N)
-
-  insert-pullup(
-    netsw.C.INTRP_N, VDD-3v3,
-    elem-type = pullup-R-t
-  )
-  net IRQ_N (irq-n, netsw.C.INTRP_N)
-
-  make-test-points([IRQ_N, PME_N])
+    make-test-points([IRQ_N, PME_N])
 
 
-  ; These connections are not used in the MIIM
-  ;   management interface.
-  no-connect(netsw.C.SDO)
-  no-connect(netsw.C.SCS_N)
+    ; These connections are not used in the MIIM
+    ;   management interface.
+    no-connect(netsw.C.SDO)
+    no-connect(netsw.C.SCS_N)
 
-  ;;  ----  RMII Setup ------
-  require sw-bus : rmii-bus from netsw
+    ;;  ----  RMII Setup ------
+    require sw-bus : rmii-bus from netsw
 
-  ; This inserts series resistors between the
-  ;  RMII transmit pins from the netsw and then
-  ;  assigns short-trace to them so that they get
-  ;  placed near the network switch.
+    ; This inserts series resistors between the
+    ;  RMII transmit pins from the netsw and then
+    ;  assigns short-trace to them so that they get
+    ;  placed near the network switch.
 
-  ; These signals are inputs and do not require the
-  ;   series resistor - The MAC side on the microcontroller
-  ;   will provide dampening resistors near its transmitter.
-  topo-bus([sw-bus.tx-en, sw-bus.txd] => [mii.tx-en, mii.txd])
+    ; These signals are inputs and do not require the
+    ;   series resistor - The MAC side on the microcontroller
+    ;   will provide dampening resistors near its transmitter.
+    topo-bus([sw-bus.tx-en, sw-bus.txd] => [mii.tx-en, mii.txd])
 
-  val series-R-type = create-resistor(resistance = 51.0, precision = (1 %), case = ["0402"])
-  ; pin-model(series-R-type.p[1], series-R-type.p[2]) = PinModel(typ(1.0e-12), typ(0.0))
+    val series-R-type = create-resistor(resistance = 51.0, precision = (1 %), case = ["0402"])
+    ; pin-model(series-R-type.p[1], series-R-type.p[2]) = PinModel(typ(1.0e-12), typ(0.0))
 
-  val rx-bus = [sw-bus.rxd, sw-bus.crs-dv, sw-bus.ref-clk]
-  val rx-out = [mii.rxd, mii.crs-dv, mii.ref-clk]
-  topo-bus(ShortTrace(rx-bus => series-R-type) => rx-out)
+    val rx-bus = [sw-bus.rxd, sw-bus.crs-dv, sw-bus.ref-clk]
+    val rx-out = [mii.rxd, mii.crs-dv, mii.ref-clk]
+    topo-bus(ShortTrace(rx-bus => series-R-type) => rx-out)
 
-  ; We need to set signal ends here because the series
-  ;  resistors will present a problem when attempting to
-  ;  apply the routing structure at the top-level.
-  set-signal-end(mii, sw-bus)
+    ; We need to set signal ends here because the series
+    ;  resistors will present a problem when attempting to
+    ;  apply the routing structure at the top-level.
+    set-signal-end(mii, sw-bus)
 
-  ;;  ---- Management Interface -----
+    ;;  ---- Management Interface -----
 
-  require miim-bus:miim from netsw
-  net (management, miim-bus)
-
+    require miim-bus:miim from netsw
+    net (management, miim-bus)
+  circuit-t
 
 

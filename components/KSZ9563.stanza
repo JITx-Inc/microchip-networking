@@ -13,6 +13,18 @@ defpackage microchip-networking/components/KSZ9563:
 defn to-tuple (pad-ids:Int ...) -> Tuple<Int> :
   pad-ids
 
+doc: \<DOC>
+Composite bundle for the MDI and LED pin assignment
+
+The MDI port and the LED must be matched so that
+the correct status LED control goes to the right
+connector.
+<DOC>
+public pcb-bundle MDI-1000BaseT-With-LEDs:
+  port MDI : MDI-1000Base-T
+  port LED : pin[2]
+
+
 public pcb-component KSZ9563R :
   name = "KSZ9563R"
   description = "3-Port Gigabit Ethernet Switch"
@@ -284,21 +296,53 @@ public pcb-module module:
 
   property(self.i2c-addr) = 0x5F
 
-  ; MDI Supports
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  ; 1000Base-T MDI Support Statements
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  ;
+  ;  For these supports, I need to match the
+  ; P1 MDI with the P1 LEDs and similar for P2.
+  ; To accomplish this - I create two custom bundles for
+  ; P1 and P2 respectively, then I match these to the
+  ; expected LEDs for those ports.
+
+  pcb-bundle MDI-1000Base-T-P1:
+    port TP : diff-pair[NUM_PAIRS_1000Base-T]
 
   make-1000Base-T-supports(
+    MDI-1000Base-T-P1,
     [C.TXRX1P_A, C.TXRX1M_A]
     [C.TXRX1P_B, C.TXRX1M_B]
     [C.TXRX1P_C, C.TXRX1M_C]
     [C.TXRX1P_D, C.TXRX1M_D]
-  )
+    )
+
+  pcb-bundle MDI-1000Base-T-P2:
+    port TP : diff-pair[NUM_PAIRS_1000Base-T]
 
   make-1000Base-T-supports(
+    MDI-1000Base-T-P2,
     [C.TXRX2P_A, C.TXRX2M_A]
     [C.TXRX2P_B, C.TXRX2M_B]
     [C.TXRX2P_C, C.TXRX2M_C]
     [C.TXRX2P_D, C.TXRX2M_D]
-  )
+    )
+
+  supports MDI-1000BaseT-With-LEDs:
+    require MDI-P1:MDI-1000Base-T-P1
+    MDI-1000BaseT-With-LEDs.LED[0] => C.LED1[0]
+    MDI-1000BaseT-With-LEDs.LED[1] => C.LED1[1]
+    for i in 0 to NUM_PAIRS_1000Base-T do:
+      MDI-1000BaseT-With-LEDs.MDI.TP[i].P => MDI-P1.TP[i].P
+      MDI-1000BaseT-With-LEDs.MDI.TP[i].N => MDI-P1.TP[i].N
+
+  supports MDI-1000BaseT-With-LEDs:
+    require MDI-P2:MDI-1000Base-T-P2
+    MDI-1000BaseT-With-LEDs.LED[0] => C.LED2[0]
+    MDI-1000BaseT-With-LEDs.LED[1] => C.LED2[1]
+    for i in 0 to NUM_PAIRS_1000Base-T do:
+      MDI-1000BaseT-With-LEDs.MDI.TP[i].P => MDI-P2.TP[i].P
+      MDI-1000BaseT-With-LEDs.MDI.TP[i].N => MDI-P2.TP[i].N
 
   ; GPIO Supports
   ;  These GPIO are primarily used for the IEEE1588 timing

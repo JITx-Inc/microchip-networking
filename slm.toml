@@ -3,4 +3,5 @@ version = "0.6.0"
 [dependencies]
 passives = { git = "JITx-Inc/passives", version = "0.1.0" }
 power-systems = { git = "JITx-Inc/power-systems", version = "0.5.0" }
-debug = { git = "JITx-Inc/debug", version = "0.3.2" }
+debug = { git = "JITx-Inc/debug", 
+version = "0.3.3" }

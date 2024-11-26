@@ -17,7 +17,7 @@ This module makes the underlying component instance `netsw` public so that the u
 
 The current implementation is supports RMII and MIIM for the configuration interface.
 ```
-  inst switch : microchip-networking/components/KSZ9563/circuit(substrate)
+  inst netsw : microchip-networking/components/KSZ9563/circuit(substrate)
 ```
 ### ports
 ```
@@ -32,7 +32,7 @@ The current implementation is supports RMII and MIIM for the configuration inter
 Supports
 ```
 ; We have to use a special bundle type that includes the LEDs so the proper LED control pins connected to the right ethernet connector.
-require sw-mdi : microchip-networking/components/KSZ9563/MDI-1000BaseT-With-LEDs[2] from switch.netsw
+require sw-mdi : microchip-networking/components/KSZ9563/MDI-1000BaseT-With-LEDs[2] from netsw.netsw
 ```
 ### Parameters
 - `substrate:Substrate` PCB Substrate where the vias are defined. This circuit requires at least one via that is `via-in-pad` capable.

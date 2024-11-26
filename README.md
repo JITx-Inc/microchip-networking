@@ -9,6 +9,7 @@ microchip-networking = { git = "JITx-Inc/microchip-networking", version = "0.6.0
 ## circuit
 This module defines many of the supporting features for instantiating the [KSZ9563](https://www.microchip.com/en-us/product/ksz9563) network switch in a design, including:
 - Configuration passives
+- Test points
 - Bypass capacitors
 - Power filters
 - Crystal resonators

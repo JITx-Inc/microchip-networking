@@ -32,7 +32,7 @@ The current implementation is supports RMII and MIIM for the configuration inter
 Supports
 ```
 ; We have to use a special bundle type that includes the LEDs so the proper LED control pins connected to the right ethernet connector.
-require sw-mdi : microchip-networking/components/KSZ9563/MDI-1000BaseT-With-LEDs[2]  from netsw.netsw
+require sw-mdi : microchip-networking/components/KSZ9563/MDI-1000BaseT-With-LEDs[2] from switch.netsw
 ```
 ### Parameters
 - `substrate:Substrate` PCB Substrate where the vias are defined. This circuit requires at least one via that is `via-in-pad` capable.

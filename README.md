@@ -7,7 +7,11 @@ microchip-networking = { git = "JITx-Inc/microchip-networking", version = "0.6.0
 
 # KSZ9563 3 Port Network Switch
 ## circuit
-This module defines many of the supporting features for instantiating the [KSZ9563](https://www.microchip.com/en-us/product/ksz9563) network switch in a design, including bypass capacitors, power filters, and crystal resonators.
+This module defines many of the supporting features for instantiating the [KSZ9563](https://www.microchip.com/en-us/product/ksz9563) network switch in a design, including:
+- Configuration passives
+- Bypass capacitors
+- Power filters
+- Crystal resonators
 
 This module makes the underlying component instance `netsw` public so that the user can directly access ports as necessary.
 
@@ -20,11 +24,15 @@ The current implementation is supports RMII and MIIM for the configuration inter
   port VDD-1v2 : power ; 1.2V Power Rail input. This rail will be used for both the digital and analog 1.2V rails with a ferrite power filter instantiated for the analog.
   port VDD-3v3 : power ; 3.3V Power rail input. THis rail will be used for the VDD-IO and the Analog 3.3V power rail. A ferrite power filter is applied to source to the analog power rail.
   port mii : rmii-bus ; Media Independent Interface implemented as a RMII (Reduced Media Independent Interface)
-  port management : miim ; Management interface, currently implemented as
-a MIIM interface.
+  port management : miim ; Management interface, currently implemented as a MIIM interface.
   port power-evt-n ; Active low power event signal from the switch
   port irq-n ; Active low interrupt request signal from the switch
   port LEDs : pin[2][2] ; LED1 and LED2 for status signals
+```
+Supports
+```
+; We have to use a special bundle type that includes the LEDs so the proper LED control pins connected to the right ethernet connector.
+require sw-mdi : microchip-networking/components/KSZ9563/MDI-1000BaseT-With-LEDs[2]  from netsw.netsw
 ```
 ### Parameters
 - `substrate:Substrate` PCB Substrate where the vias are defined. This circuit requires at least one via that is `via-in-pad` capable.

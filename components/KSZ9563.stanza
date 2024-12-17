@@ -211,225 +211,230 @@ KSZ9563RNX Hardware Design Checklist
 
 
 <DOC>
-public pcb-module module:
-  name = "KSZ9563 Ethernet Switch"
+public defn module (
+  R-query:ResistorQuery = get-default-resistor-query(),
+  C-query:CapacitorQuery = get-default-capacitor-query(),
+  ) -> Instantiable:
+  pcb-module module-int:
+    name = "KSZ9563 Ethernet Switch"
 
-  port rail-1v2 : power
-  port rail-IO : power
-  port rail-analog : power
-  port rail-analog-1v2 : power
+    port rail-1v2 : power
+    port rail-IO : power
+    port rail-analog : power
+    port rail-analog-1v2 : power
 
-  net GND (rail-1v2.V-, rail-IO.V-, rail-analog.V-, rail-analog-1v2.V-)
+    net GND (rail-1v2.V-, rail-IO.V-, rail-analog.V-, rail-analog-1v2.V-)
 
-  public inst C : KSZ9563R
+    public inst C : KSZ9563R
 
-  net (GND, C.GND, C.PAD)
+    net (GND, C.GND, C.PAD)
 
-  ; MII Supports
+    ; MII Supports
 
-  val mii-b = mii(MII-TXER)
-  supports mii-b:
-    mii-b.txd[0] => C.TXD[0]
-    mii-b.txd[1] => C.TXD[1]
-    mii-b.txd[2] => C.TXD[2]
-    mii-b.txd[3] => C.TXD[3]
-    mii-b.tx-clk => C.TXCLK_REFCLKI
-    mii-b.tx-en => C.TXEN_TXCTL
-    mii-b.tx-er => C.TX_ER
+    val mii-b = mii(MII-TXER)
+    supports mii-b:
+      mii-b.txd[0] => C.TXD[0]
+      mii-b.txd[1] => C.TXD[1]
+      mii-b.txd[2] => C.TXD[2]
+      mii-b.txd[3] => C.TXD[3]
+      mii-b.tx-clk => C.TXCLK_REFCLKI
+      mii-b.tx-en => C.TXEN_TXCTL
+      mii-b.tx-er => C.TX_ER
 
-    mii-b.rxd[0] => C.RXD[0]
-    mii-b.rxd[1] => C.RXD[1]
-    mii-b.rxd[2] => C.RXD[2]
-    mii-b.rxd[3] => C.RXD[3]
-    mii-b.rx-clk => C.RXCLK_REFCLKO
-    mii-b.rx-dv => C.RXDV_CRSDV_RXCTL
-    mii-b.rx-er => C.RX_ER
+      mii-b.rxd[0] => C.RXD[0]
+      mii-b.rxd[1] => C.RXD[1]
+      mii-b.rxd[2] => C.RXD[2]
+      mii-b.rxd[3] => C.RXD[3]
+      mii-b.rx-clk => C.RXCLK_REFCLKO
+      mii-b.rx-dv => C.RXDV_CRSDV_RXCTL
+      mii-b.rx-er => C.RX_ER
 
-  val rmii-bus = rmii(add-rx-error = false)
-  supports rmii-bus: ; false => No RX error pin
-    rmii-bus.txd[0] => C.TXD[0]
-    rmii-bus.txd[1] => C.TXD[1]
-    rmii-bus.tx-en => C.TXEN_TXCTL
-    rmii-bus.crs-dv => C.RXDV_CRSDV_RXCTL
+    val rmii-bus = rmii(add-rx-error = false)
+    supports rmii-bus: ; false => No RX error pin
+      rmii-bus.txd[0] => C.TXD[0]
+      rmii-bus.txd[1] => C.TXD[1]
+      rmii-bus.tx-en => C.TXEN_TXCTL
+      rmii-bus.crs-dv => C.RXDV_CRSDV_RXCTL
 
-    rmii-bus.rxd[0] => C.RXD[0]
-    rmii-bus.rxd[1] => C.RXD[1]
+      rmii-bus.rxd[0] => C.RXD[0]
+      rmii-bus.rxd[1] => C.RXD[1]
 
-    ; This is the MAC Mode version - where the KSZ9563
-    ;  is acting like a PHY and generates a REF-CLK for
-    ;  the MCU or whatever MAC device.
-    ; The PHY mode version would use `C.TXCLK_REFCLKI`
-    ;  where an attached PHY would drive a REF-CLK into
-    ;  the KSZ9563
-    rmii-bus.ref-clk => C.RXCLK_REFCLKO
+      ; This is the MAC Mode version - where the KSZ9563
+      ;  is acting like a PHY and generates a REF-CLK for
+      ;  the MCU or whatever MAC device.
+      ; The PHY mode version would use `C.TXCLK_REFCLKI`
+      ;  where an attached PHY would drive a REF-CLK into
+      ;  the KSZ9563
+      rmii-bus.ref-clk => C.RXCLK_REFCLKO
 
-  supports rgmii:
-    rgmii.TX.ctl => C.RXDV_CRSDV_RXCTL
-    rgmii.TX.clk => C.RXCLK_REFCLKO
-    rgmii.TX.data[0] => C.RXD[0]
-    rgmii.TX.data[1] => C.RXD[1]
-    rgmii.TX.data[2] => C.RXD[2]
-    rgmii.TX.data[3] => C.RXD[3]
+    supports rgmii:
+      rgmii.TX.ctl => C.RXDV_CRSDV_RXCTL
+      rgmii.TX.clk => C.RXCLK_REFCLKO
+      rgmii.TX.data[0] => C.RXD[0]
+      rgmii.TX.data[1] => C.RXD[1]
+      rgmii.TX.data[2] => C.RXD[2]
+      rgmii.TX.data[3] => C.RXD[3]
 
-    rgmii.RX.ctl => C.TXEN_TXCTL
-    rgmii.RX.clk => C.TXCLK_REFCLKI
-    rgmii.RX.data[0] => C.TXD[0]
-    rgmii.RX.data[1] => C.TXD[1]
-    rgmii.RX.data[2] => C.TXD[2]
-    rgmii.RX.data[3] => C.TXD[3]
+      rgmii.RX.ctl => C.TXEN_TXCTL
+      rgmii.RX.clk => C.TXCLK_REFCLKI
+      rgmii.RX.data[0] => C.TXD[0]
+      rgmii.RX.data[1] => C.TXD[1]
+      rgmii.RX.data[2] => C.TXD[2]
+      rgmii.RX.data[3] => C.TXD[3]
 
-  ; Configuration & Management Interfaces Supports
-  supports miim:
-    miim.mdio => C.SDI_SDA_MDIO
-    miim.mdc => C.SCL_MDC
+    ; Configuration & Management Interfaces Supports
+    supports miim:
+      miim.mdio => C.SDI_SDA_MDIO
+      miim.mdc => C.SCL_MDC
 
-  val sspi = spi-with-cs()
-  supports sspi:
-    sspi.sck => C.SCL_MDC
-    sspi.copi => C.SDI_SDA_MDIO
-    sspi.cipo => C.SDO
-    sspi.cs => C.SCS_N
+    val sspi = spi-with-cs()
+    supports sspi:
+      sspi.sck => C.SCL_MDC
+      sspi.copi => C.SDI_SDA_MDIO
+      sspi.cipo => C.SDO
+      sspi.cs => C.SCS_N
 
-  supports i2c:
-    i2c.sda => C.SDI_SDA_MDIO
-    i2c.scl => C.SCL_MDC
+    supports i2c:
+      i2c.sda => C.SDI_SDA_MDIO
+      i2c.scl => C.SCL_MDC
 
-  property(self.i2c-addr) = 0x5F
+    property(self.i2c-addr) = 0x5F
 
-  ;;;;;;;;;;;;;;;;;;;;;;;;;;;
-  ; 1000Base-T MDI Support Statements
-  ;;;;;;;;;;;;;;;;;;;;;;;;;;;
-  ;
-  ;  For these supports, I need to match the
-  ; P1 MDI with the P1 LEDs and similar for P2.
-  ; To accomplish this - I create two custom bundles for
-  ; P1 and P2 respectively, then I match these to the
-  ; expected LEDs for those ports.
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ; 1000Base-T MDI Support Statements
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;
+    ;  For these supports, I need to match the
+    ; P1 MDI with the P1 LEDs and similar for P2.
+    ; To accomplish this - I create two custom bundles for
+    ; P1 and P2 respectively, then I match these to the
+    ; expected LEDs for those ports.
 
-  pcb-bundle MDI-1000Base-T-P1:
-    port TP : diff-pair[NUM_PAIRS_1000Base-T]
+    pcb-bundle MDI-1000Base-T-P1:
+      port TP : diff-pair[NUM_PAIRS_1000Base-T]
 
-  make-1000Base-T-supports(
-    MDI-1000Base-T-P1,
-    [C.TXRX1P_A, C.TXRX1M_A]
-    [C.TXRX1P_B, C.TXRX1M_B]
-    [C.TXRX1P_C, C.TXRX1M_C]
-    [C.TXRX1P_D, C.TXRX1M_D]
+    make-1000Base-T-supports(
+      MDI-1000Base-T-P1,
+      [C.TXRX1P_A, C.TXRX1M_A]
+      [C.TXRX1P_B, C.TXRX1M_B]
+      [C.TXRX1P_C, C.TXRX1M_C]
+      [C.TXRX1P_D, C.TXRX1M_D]
+      )
+
+    pcb-bundle MDI-1000Base-T-P2:
+      port TP : diff-pair[NUM_PAIRS_1000Base-T]
+
+    make-1000Base-T-supports(
+      MDI-1000Base-T-P2,
+      [C.TXRX2P_A, C.TXRX2M_A]
+      [C.TXRX2P_B, C.TXRX2M_B]
+      [C.TXRX2P_C, C.TXRX2M_C]
+      [C.TXRX2P_D, C.TXRX2M_D]
+      )
+
+    supports MDI-1000BaseT-With-LEDs:
+      require MDI-P1:MDI-1000Base-T-P1
+      MDI-1000BaseT-With-LEDs.LED[0] => C.LED1[0]
+      MDI-1000BaseT-With-LEDs.LED[1] => C.LED1[1]
+      for i in 0 to NUM_PAIRS_1000Base-T do:
+        MDI-1000BaseT-With-LEDs.MDI.TP[i].P => MDI-P1.TP[i].P
+        MDI-1000BaseT-With-LEDs.MDI.TP[i].N => MDI-P1.TP[i].N
+
+    supports MDI-1000BaseT-With-LEDs:
+      require MDI-P2:MDI-1000Base-T-P2
+      MDI-1000BaseT-With-LEDs.LED[0] => C.LED2[0]
+      MDI-1000BaseT-With-LEDs.LED[1] => C.LED2[1]
+      for i in 0 to NUM_PAIRS_1000Base-T do:
+        MDI-1000BaseT-With-LEDs.MDI.TP[i].P => MDI-P2.TP[i].P
+        MDI-1000BaseT-With-LEDs.MDI.TP[i].N => MDI-P2.TP[i].N
+
+    ; GPIO Supports
+    ;  These GPIO are primarily used for the IEEE1588 timing
+    ;  either for capture or notification.
+
+    for i in 1 through length(C.GPIO) do:
+      supports gpio:
+        gpio.gpio => C.GPIO[i]
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;
+    ; Support Components
+    ;;;;;;;;;;;;;;;;;;;;;;;;
+
+    ; See: KSZ9563RNX Hardware Design Checklist - Section 5.0
+    insert-resistor(C.ISET, GND, R-query, resistance = 6.04e3, precision = (1 %))
+
+    ; Voltage Margin Relative to the intended voltage.
+    ;  This helps set the minimum voltage range to search.
+    val cap-margin = 2.0
+    ; Set a maximum voltage search range for components
+    val max-voltage = 16.0
+
+    ; Bypass Capacitors
+    ; See: KSZ9563RNX Hardware Design Checklist - Section 4.1
+
+    val bypass-query = CapacitorQuery(
+      C-query,
+      sort! = SortKey(rated-voltage = Increasing)
     )
 
-  pcb-bundle MDI-1000Base-T-P2:
-    port TP : diff-pair[NUM_PAIRS_1000Base-T]
+    val IO-voltage = get-rail-voltage(rail-IO, def-V = 3.3, margin = cap-margin)
+    val core-voltage = get-rail-voltage(rail-1v2, def-V = 1.2, margin = cap-margin)
+    val core-analog-V = get-rail-voltage(rail-analog-1v2, def-V = 1.2, margin = cap-margin)
+    val analog-voltage = get-rail-voltage(rail-analog, def-V = 3.3, margin = cap-margin)
 
-  make-1000Base-T-supports(
-    MDI-1000Base-T-P2,
-    [C.TXRX2P_A, C.TXRX2M_A]
-    [C.TXRX2P_B, C.TXRX2M_B]
-    [C.TXRX2P_C, C.TXRX2M_C]
-    [C.TXRX2P_D, C.TXRX2M_D]
+    ; Find the largest rail voltage and we will use that to plan our
+    val max-rail-V = maximum([IO-voltage, core-voltage, core-analog-V, analog-voltage])
+
+    ; Smaller Bypass Cap - we place one per pin.
+    val fine-C = create-capacitor(
+      bypass-query,
+      capacitance = 0.1e-6,
+      rated-voltage = Interval(max-rail-V, max-voltage)
     )
 
-  supports MDI-1000BaseT-With-LEDs:
-    require MDI-P1:MDI-1000Base-T-P1
-    MDI-1000BaseT-With-LEDs.LED[0] => C.LED1[0]
-    MDI-1000BaseT-With-LEDs.LED[1] => C.LED1[1]
-    for i in 0 to NUM_PAIRS_1000Base-T do:
-      MDI-1000BaseT-With-LEDs.MDI.TP[i].P => MDI-P1.TP[i].P
-      MDI-1000BaseT-With-LEDs.MDI.TP[i].N => MDI-P1.TP[i].N
+    ; Bulk Capacitance - We place one of these per rail.
+    val bulk-C = create-capacitor(
+      bypass-query,
+      capacitance = 22.0e-6
+      rated-voltage = Interval(max-rail-V, max-voltage)
+      case = ["0603", "0805", "1206"]
+    )
 
-  supports MDI-1000BaseT-With-LEDs:
-    require MDI-P2:MDI-1000Base-T-P2
-    MDI-1000BaseT-With-LEDs.LED[0] => C.LED2[0]
-    MDI-1000BaseT-With-LEDs.LED[1] => C.LED2[1]
-    for i in 0 to NUM_PAIRS_1000Base-T do:
-      MDI-1000BaseT-With-LEDs.MDI.TP[i].P => MDI-P2.TP[i].P
-      MDI-1000BaseT-With-LEDs.MDI.TP[i].N => MDI-P2.TP[i].N
+    for p in pins(C.VDDIO) do:
+      net (p, rail-IO.V+)
+      val c = insert-bypass(p, GND, elem-type = fine-C)
+      schematic-group(c) = bypass-cap-IO
 
-  ; GPIO Supports
-  ;  These GPIO are primarily used for the IEEE1588 timing
-  ;  either for capture or notification.
+    ; Bulk Capacitance
+    val cb-io = insert-bypass(C.VDDIO[0], GND, elem-type = bulk-C)
+    schematic-group(cb-io) = bypass-cap-IO
 
-  for i in 1 through length(C.GPIO) do:
-    supports gpio:
-      gpio.gpio => C.GPIO[i]
+    for p in pins(C.DVDDL) do:
+      net (rail-1v2.V+, p)
+      val c = insert-bypass(p, GND, elem-type = fine-C)
+      schematic-group(c) = bypass-cap-DVDDL
 
-  ;;;;;;;;;;;;;;;;;;;;;;;;
-  ; Support Components
-  ;;;;;;;;;;;;;;;;;;;;;;;;
+    val cb-dvddl = insert-bypass(C.DVDDL[0], GND, elem-type = bulk-C)
+    schematic-group(cb-dvddl) = bypass-cap-DVDDL
 
-  ; See: KSZ9563RNX Hardware Design Checklist - Section 5.0
-  insert-resistor(C.ISET, GND, resistance = 6.04e3, precision = (1 %), type = "chip")
+    for p in pins(C.AVDDL) do:
+      net (rail-analog-1v2.V+, p)
+      val c = insert-bypass(p, GND, elem-type = fine-C)
+      schematic-group(c) = bypass-cap-AVDDL
 
-  ; Voltage Margin Relative to the intended voltage.
-  ;  This helps set the minimum voltage range to search.
-  val cap-margin = 2.0
-  ; Set a maximum voltage search range for components
-  val max-voltage = 16.0
+    val cb-avdd = insert-bypass(C.AVDDL[0], GND, elem-type = bulk-C)
+    schematic-group(cb-avdd) = bypass-cap-AVDDL
 
-  ; Bypass Capacitors
-  ; See: KSZ9563RNX Hardware Design Checklist - Section 4.1
+    for p in pins(C.AVDDH) do:
+      net (rail-analog.V+, p)
+      val c = insert-bypass(p, GND, elem-type = fine-C)
+      schematic-group(c) = bypass-cap-AVDDH
 
-  val bypass-query = CapacitorQuery(
-    type = "ceramic",
-    temperature-coefficient_code = "X7R",
-    sort! = SortKey(rated-voltage = Increasing)
-  )
+    val cb-ah = insert-bypass(C.AVDDH[0], GND, elem-type = bulk-C)
+    schematic-group(cb-ah) = bypass-cap-AVDDH
 
-  val IO-voltage = get-rail-voltage(rail-IO, def-V = 3.3, margin = cap-margin)
-  val core-voltage = get-rail-voltage(rail-1v2, def-V = 1.2, margin = cap-margin)
-  val core-analog-V = get-rail-voltage(rail-analog-1v2, def-V = 1.2, margin = cap-margin)
-  val analog-voltage = get-rail-voltage(rail-analog, def-V = 3.3, margin = cap-margin)
-
-  ; Find the largest rail voltage and we will use that to plan our
-  val max-rail-V = maximum([IO-voltage, core-voltage, core-analog-V, analog-voltage])
-
-  ; Smaller Bypass Cap - we place one per pin.
-  val fine-C = create-capacitor(
-    bypass-query,
-    capacitance = 0.1e-6,
-    rated-voltage = Interval(max-rail-V, max-voltage)
-    case = ["0402"]
-  )
-
-  ; Bulk Capacitance - We place one of these per rail.
-  val bulk-C = create-capacitor(
-    bypass-query,
-    capacitance = 22.0e-6
-    rated-voltage = Interval(max-rail-V, max-voltage)
-    case = ["0603", "0805", "1206"]
-  )
-
-  for p in pins(C.VDDIO) do:
-    net (p, rail-IO.V+)
-    val c = insert-bypass(p, GND, elem-type = fine-C)
-    schematic-group(c) = bypass-cap-IO
-
-  ; Bulk Capacitance
-  val cb-io = insert-bypass(C.VDDIO[0], GND, elem-type = bulk-C)
-  schematic-group(cb-io) = bypass-cap-IO
-
-  for p in pins(C.DVDDL) do:
-    net (rail-1v2.V+, p)
-    val c = insert-bypass(p, GND, elem-type = fine-C)
-    schematic-group(c) = bypass-cap-DVDDL
-
-  val cb-dvddl = insert-bypass(C.DVDDL[0], GND, elem-type = bulk-C)
-  schematic-group(cb-dvddl) = bypass-cap-DVDDL
-
-  for p in pins(C.AVDDL) do:
-    net (rail-analog-1v2.V+, p)
-    val c = insert-bypass(p, GND, elem-type = fine-C)
-    schematic-group(c) = bypass-cap-AVDDL
-
-  val cb-avdd = insert-bypass(C.AVDDL[0], GND, elem-type = bulk-C)
-  schematic-group(cb-avdd) = bypass-cap-AVDDL
-
-  for p in pins(C.AVDDH) do:
-    net (rail-analog.V+, p)
-    val c = insert-bypass(p, GND, elem-type = fine-C)
-    schematic-group(c) = bypass-cap-AVDDH
-
-  val cb-ah = insert-bypass(C.AVDDH[0], GND, elem-type = bulk-C)
-  schematic-group(cb-ah) = bypass-cap-AVDDH
+  ; Returned Instantiable
+  module-int 
 
 val rmii-bus = rmii(add-rx-error = false)
 
@@ -487,7 +492,9 @@ public defn circuit (
   enable-in-band-mng:True|False = false,
   enable-on-reset:True|False = true,
   enable-gigabit:True|False = true,
-  rmii-clock-mode:True|False = true
+  rmii-clock-mode:True|False = true,
+  R-query:ResistorQuery = get-default-resistor-query(),
+  C-query:CapacitorQuery = get-default-capacitor-query()
   ):
   pcb-module circuit-t:
 
@@ -501,7 +508,7 @@ public defn circuit (
     port irq-n
     port LEDs : pin[2][2]
 
-    public inst netsw : microchip-networking/components/KSZ9563/module
+    public inst netsw : microchip-networking/components/KSZ9563/module(R-query, C-query)
 
     net (VDD-3v3, netsw.rail-IO)
     net (VDD-1v2, netsw.rail-1v2)
@@ -569,13 +576,13 @@ public defn circuit (
       ; Add a series resistor for dampening if needed.
       insert-resistor(
         resonator.p[2], netsw.C.XO,
+        R-query,
         resistance = 0.0,
-        precision = (1 %)
       )
 
     ;; ---- Configuration Straps ------
 
-    val pullup-R-t = create-resistor(resistance = 4.7e3, precision = (1 %))
+    val pullup-R-t = create-resistor(R-query, resistance = 4.7e3)
     inst configs : ConfigStrap(
       num-elems = 4,
       comp = pullup-R-t,
@@ -610,7 +617,7 @@ public defn circuit (
 
     insert-pullup(
       netsw.C.RXD[2], VDD-3v3,
-      elem-type = pullup-R-t
+      elem-type = pullup-R-t,
     )
 
     ; PME_N must be pullup high to provide to enable
@@ -648,7 +655,7 @@ public defn circuit (
     ;   will provide dampening resistors near its transmitter.
     topo-bus([sw-bus.tx-en, sw-bus.txd] => [mii.tx-en, mii.txd])
 
-    val series-R-type = create-resistor(resistance = 51.0, precision = (1 %), case = ["0402"])
+    val series-R-type = create-resistor(R-query, resistance = 51.0, precision = (1 %), case = ["0402"])
     ; pin-model(series-R-type.p[1], series-R-type.p[2]) = PinModel(typ(1.0e-12), typ(0.0))
 
     val rx-bus = [sw-bus.rxd, sw-bus.crs-dv, sw-bus.ref-clk]

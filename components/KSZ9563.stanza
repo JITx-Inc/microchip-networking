@@ -370,12 +370,7 @@ public defn module (
     val max-voltage = 16.0
 
     ; Bypass Capacitors
-    ; See: KSZ9563RNX Hardware Design Checklist - Section 4.1
-
-    val bypass-query = CapacitorQuery(
-      C-query,
-      sort! = SortKey(rated-voltage = Increasing)
-    )
+    ; See: KSZ9563RNX Hardware Design Checklist - Section 4.1=
 
     val IO-voltage = get-rail-voltage(rail-IO, def-V = 3.3, margin = cap-margin)
     val core-voltage = get-rail-voltage(rail-1v2, def-V = 1.2, margin = cap-margin)
@@ -387,17 +382,17 @@ public defn module (
 
     ; Smaller Bypass Cap - we place one per pin.
     val fine-C = create-capacitor(
-      bypass-query,
+      C-query,
       capacitance = 0.1e-6,
       rated-voltage = Interval(max-rail-V, max-voltage)
     )
 
     ; Bulk Capacitance - We place one of these per rail.
     val bulk-C = create-capacitor(
-      bypass-query,
+      C-query,
+      tolerance = AtMost((50 %))
       capacitance = 22.0e-6
-      rated-voltage = Interval(max-rail-V, max-voltage)
-      case = ["0603", "0805", "1206"]
+      rated-voltage = Interval(max-rail-V, max-voltage),
     )
 
     for p in pins(C.VDDIO) do:

@@ -390,7 +390,6 @@ public defn module (
     ; Bulk Capacitance - We place one of these per rail.
     val bulk-C = create-capacitor(
       C-query,
-      tolerance = AtMost((50 %))
       capacitance = 22.0e-6
       rated-voltage = Interval(max-rail-V, max-voltage),
     )

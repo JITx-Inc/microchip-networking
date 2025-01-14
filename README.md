@@ -2,7 +2,7 @@
 
 In slm.toml add:
 ```
-microchip-networking = { git = "JITx-Inc/microchip-networking", version = "0.6.1" }
+microchip-networking = { git = "JITx-Inc/microchip-networking", version = "0.6.4" }
 ```
 
 # KSZ9563 3 Port Network Switch
